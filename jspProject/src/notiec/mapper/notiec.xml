@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="notiec">
+  <select id="list" resultType="notiec.dto.notiecDTO">
+   select *
+    from(
+      select A.*, rownum as rn
+      from ( 
+        select num,writer,subject,reg_date,readcount
+				,re_level
+				,(select count(*) from notiec_comment
+				where notiec_num=num) comment_count, show
+				from notiec
+				order by ref desc, re_step
+        ) A
+     )
+     where rn between #{start} and #{end} 
+  </select>
+  
+  <insert id="insert">
+  insert into notiec
+   (num,writer,subject,passwd,ref,re_step,re_level,content,ip)
+   values
+   ( (select nvl(max(num)+1,1) from notiec)
+   ,#{writer},#{subject},#{passwd}
+   ,(select nvl(max(num)+1,1) from notiec)
+   ,1,0,#{content},#{ip} )
+  </insert>
+  
+  <select id="view" resultType="notiec.dto.notiecDTO">
+    select * from notiec
+    where num=#{num}
+  </select>
+  
+  <update id="plusReadCount">
+    update notiec set readcount=readcount+1 
+    where num=#{num}
+  </update>
+  
+  <select id="commentList" 
+		resultType="notiec.dto.notiecDTO">
+		select * from notiec_comment 
+		where notiec_num=#{num}
+	</select>
+	
+	<insert id="commentAdd">
+	  insert into notiec_comment
+		(comment_num,notiec_num,writer,content) values
+		((select nvl(max(comment_num)+1,1) from notiec_comment)
+		, #{notiec_num}, #{writer}, #{content})
+	</insert>	
+	
+	<update id="updateStep">
+	  update notiec
+	  set re_step=re_step+1
+	  where ref=#{ref} and re_step >= #{re_step}
+	</update>
+	
+	<insert id="reply">
+	  insert into notiec
+			(num,writer,subject,passwd,ref,re_step,re_level
+			,content,ip)
+		values
+		( (select nvl(max(num)+1,1) from notiec)
+		 ,#{writer},#{subject},#{passwd}
+		 ,#{ref},#{re_step},#{re_level}
+		 ,#{content},#{ip} )
+	</insert>
+	
+	<select id="pass_check" resultType="String">
+	  select passwd from notiec
+	  where num=#{num} and passwd=#{passwd}
+	</select>
+	
+	<update id="update">
+	  update notiec
+		set writer=#{writer}, subject=#{subject}
+		 , content=#{content}
+		where num=#{num}
+	</update>
+	
+	<update id="delete">
+	  update notiec set show='n'
+	  where num=#{num}
+	</update>
+	
+	<select id="searchList" resultType="notiec.dto.notiecDTO">
+	  select num,writer,subject,reg_date,readcount
+	  ,re_level
+			,(select count(*) from notiec_comment 
+			where notiec_num=num) comment_count, show
+		from notiec
+		<choose>
+		  <when test="search_option != 'all'">
+		    where ${search_option} like #{keyword} and show='y'
+		  </when>
+		  <otherwise>
+		    where ( writer like #{keyword} 
+		    or subject like #{keyword} 
+		    or content like #{keyword} ) and show='y'
+		  </otherwise>
+		</choose>
+		order by ref desc, re_step
+	</select>
+	
+    <select id="count" resultType="int">
+	  select count(*) from notiec
+	</select>
+	
+    <update id="delete2">
+	  update notiec set show='n'
+	  where num=#{num}
+	</update>
+	
+		<update id="update2">
+	  update notiec
+		set writer=#{writer}, subject=#{subject}
+		 , content=#{content}
+		where num=#{num}
+	</update>
+</mapper>

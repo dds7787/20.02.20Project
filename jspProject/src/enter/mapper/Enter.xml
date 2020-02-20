@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="enter">
+  <select id="list" resultType="enter.dto.EnterDTO">
+   select *
+    from(
+      select A.*, rownum as rn
+      from ( 
+        select num,writer,subject,reg_date,readcount
+				,filename,filesize,down,re_level
+				,(select count(*) from enter_comment
+				where enter_num=num) comment_count, show
+				from enter
+				order by ref desc, re_step
+        ) A
+     )
+     where rn between #{start} and #{end} 
+  </select>
+  
+  <insert id="insert">
+  insert into enter
+   (num,writer,subject,passwd,ref,re_step,re_level,content,ip,filename,filesize)
+   values
+   ( (select nvl(max(num)+1,1) from enter)
+   ,#{writer},#{subject},#{passwd}
+   ,(select nvl(max(num)+1,1) from enter)
+   ,1,0,#{content},#{ip},#{filename},#{filesize} )
+  </insert>
+  
+  <select id="getFileName" resultType="String">
+    select filename
+    from enter
+    where num=#{num}
+  </select>
+  
+  <update id="plusDown">
+    update enter set down=down+1 where num=#{num} 
+  </update>
+  
+  <select id="view" resultType="enter.dto.EnterDTO">
+    select * from enter
+    where num=#{num}
+  </select>
+  
+  <update id="plusReadCount">
+    update enter set readcount=readcount+1 
+    where num=#{num}
+  </update>
+  
+  <select id="commentList" 
+		resultType="enter.dto.EnterDTO">
+		select * from enter_comment 
+		where enter_num=#{num}
+	</select>
+	
+	<insert id="commentAdd">
+	  insert into enter_comment
+		(comment_num,enter_num,writer,content) values
+		((select nvl(max(comment_num)+1,1) from enter_comment)
+		, #{enter_num}, #{writer}, #{content})
+	</insert>	
+	
+	<update id="updateStep">
+	  update enter
+	  set re_step=re_step+1
+	  where ref=#{ref} and re_step >= #{re_step}
+	</update>
+	
+	<insert id="reply">
+	  insert into enter
+			(num,writer,subject,passwd,ref,re_step,re_level
+			,content,ip,filename,filesize)
+		values
+		( (select nvl(max(num)+1,1) from enter)
+		 ,#{writer},#{subject},#{passwd}
+		 ,#{ref},#{re_step},#{re_level}
+		 ,#{content},#{ip},#{filename},#{filesize} )
+	</insert>
+	
+	<select id="pass_check" resultType="String">
+	  select passwd from enter
+	  where num=#{num} and passwd=#{passwd}
+	</select>
+	
+	<update id="update">
+	  update enter
+		set writer=#{writer}, subject=#{subject}
+		 , content=#{content}, filename=#{filename}
+		 , filesize=#{filesize}, down=#{down}
+		where num=#{num}
+	</update>
+	
+	<update id="delete">
+	  update enter set show='n'
+	  where num=#{num}
+	</update>
+	
+	<select id="searchList" resultType="enter.dto.EnterDTO">
+	  select num,writer,subject,reg_date,readcount
+	  ,filename,filesize,down,re_level
+			,(select count(*) from enter_comment 
+			where enter_num=num) comment_count, show
+		from enter
+		<choose>
+		  <when test="search_option != 'all'">
+		    where ${search_option} like #{keyword} and show='y'
+		  </when>
+		  <otherwise>
+		    where ( writer like #{keyword} 
+		    or subject like #{keyword} 
+		    or content like #{keyword} ) and show='y'
+		  </otherwise>
+		</choose>
+		order by ref desc, re_step
+	</select>
+	
+    <select id="count" resultType="int">
+	  select count(*) from enter
+	</select>
+</mapper>
